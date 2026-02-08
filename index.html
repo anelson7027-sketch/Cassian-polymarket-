@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polymarket Opportunity Scanner</title>
+    <title>Polymarket Scanner</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -25,52 +25,56 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
-            padding: 15px;
+            padding: 12px;
+            font-size: 14px;
         }
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             padding: 15px;
             background: var(--bg-secondary);
             border-radius: 12px;
             border: 1px solid var(--border);
         }
         .header h1 {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 1.4rem;
+            margin-bottom: 5px;
+            color: var(--accent-blue);
         }
-        .header p { color: var(--text-secondary); font-size: 0.85rem; }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .stat-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 12px 8px;
-            text-align: center;
-        }
-        .stat-card .value { font-size: 1.3rem; font-weight: bold; margin-bottom: 3px; }
-        .stat-card .label { color: var(--text-secondary); font-size: 0.65rem; text-transform: uppercase; }
-        .stat-card.green .value { color: var(--accent-green); }
-        .stat-card.blue .value { color: var(--accent-blue); }
-        .stat-card.yellow .value { color: var(--accent-yellow); }
-        .stat-card.purple .value { color: var(--accent-purple); }
-        .controls {
+        .header p { color: var(--text-secondary); font-size: 0.8rem; }
+        .status-bar {
+            background: var(--bg-tertiary);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
             gap: 10px;
+        }
+        .status-bar .status { color: var(--accent-yellow); }
+        .status-bar .status.success { color: var(--accent-green); }
+        .status-bar .status.error { color: var(--accent-red); }
+        button {
+            background: var(--accent-blue);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        button:disabled { opacity: 0.5; }
+        .filters {
+            display: flex;
+            gap: 8px;
             margin-bottom: 15px;
             flex-wrap: wrap;
-            align-items: center;
         }
-        select, button {
+        select {
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
             color: var(--text-primary);
@@ -78,399 +82,373 @@
             border-radius: 6px;
             font-size: 0.85rem;
         }
-        button {
-            cursor: pointer;
-            background: var(--accent-blue);
-            border-color: var(--accent-blue);
+        .market-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+        .market-question {
             font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 12px;
+            line-height: 1.4;
         }
-        button:disabled { opacity: 0.5; }
-        .refresh-time { font-size: 0.75rem; color: var(--text-secondary); margin-left: auto; }
-        .panel {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 15px;
-        }
-        .panel-header {
-            background: var(--bg-tertiary);
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border);
+        .market-question a { color: var(--text-primary); text-decoration: none; }
+        .market-question a:hover { color: var(--accent-blue); }
+        .prices-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .panel-header h2 { font-size: 1rem; }
-        .panel-content { padding: 12px; max-height: 65vh; overflow-y: auto; }
-        .opp-card {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
-        }
-        .opp-card:last-child { margin-bottom: 0; }
-        .opp-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
             gap: 10px;
+            margin-bottom: 12px;
         }
-        .opp-title { font-weight: 600; font-size: 0.9rem; flex: 1; line-height: 1.3; }
-        .opp-score {
-            padding: 3px 8px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-        .score-high { background: rgba(63,185,80,0.2); color: var(--accent-green); }
-        .score-medium { background: rgba(210,153,34,0.2); color: var(--accent-yellow); }
-        .score-low { background: rgba(139,148,158,0.2); color: var(--text-secondary); }
-        .opp-details {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            margin-bottom: 8px;
-        }
-        .detail-item {
+        .price-box {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
             text-align: center;
-            padding: 6px 4px;
-            background: var(--bg-secondary);
-            border-radius: 6px;
         }
-        .detail-value { font-weight: bold; font-size: 0.9rem; }
-        .detail-label { font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase; }
-        .opp-meta {
-            display: flex;
-            justify-content: space-between;
+        .price-box.yes {
+            background: rgba(63, 185, 80, 0.15);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+        .price-box.no {
+            background: rgba(248, 81, 73, 0.15);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+        .price-box .price {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .price-box.yes .price { color: var(--accent-green); }
+        .price-box.no .price { color: var(--accent-red); }
+        .price-box .label {
             font-size: 0.75rem;
             color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .price-box .payout {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .price-box .payout strong {
+            color: var(--text-primary);
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .stat-item {
+            background: var(--bg-tertiary);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-item .val {
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+        .stat-item .lbl {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .analysis-box {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid rgba(88, 166, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .analysis-box h4 {
+            color: var(--accent-blue);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+        .analysis-box p {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+        .analysis-box .highlight {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .tags {
+            margin-top: 10px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
         }
         .tag {
-            display: inline-block;
-            padding: 2px 6px;
+            padding: 3px 8px;
             border-radius: 4px;
-            font-size: 0.65rem;
-            margin-right: 3px;
+            font-size: 0.7rem;
+            font-weight: 600;
         }
-        .tag-value { background: rgba(63,185,80,0.2); color: var(--accent-green); }
         .tag-momentum { background: rgba(88,166,255,0.2); color: var(--accent-blue); }
         .tag-volume { background: rgba(210,153,34,0.2); color: var(--accent-yellow); }
         .tag-extreme { background: rgba(163,113,247,0.2); color: var(--accent-purple); }
-        .recommendation {
-            margin-top: 8px;
-            font-size: 0.8rem;
-            color: var(--accent-blue);
-            padding: 8px;
-            background: rgba(88,166,255,0.1);
-            border-radius: 6px;
+        .tag-liquid { background: rgba(63,185,80,0.2); color: var(--accent-green); }
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
         }
         .loading {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 150px;
-            color: var(--text-secondary);
-            gap: 12px;
-        }
-        .spinner {
-            width: 35px; height: 35px;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent-blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .error {
-            background: rgba(248,81,73,0.1);
-            border: 1px solid var(--accent-red);
-            color: var(--accent-red);
-            padding: 15px;
-            border-radius: 8px;
             text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
         }
-        .empty-state { text-align: center; padding: 30px; color: var(--text-secondary); }
-        a { color: var(--accent-blue); text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .chart-container { height: 220px; }
-        @media (max-width: 500px) {
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .opp-details { grid-template-columns: repeat(2, 1fr); }
+        .debug {
+            background: var(--bg-tertiary);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            max-height: 100px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🎯 Polymarket Scanner</h1>
-        <p>Live prediction market opportunities</p>
+        <p>Find profitable prediction market opportunities</p>
     </div>
 
-    <div class="stats-grid">
-        <div class="stat-card blue">
-            <div class="value" id="total-markets">-</div>
-            <div class="label">Markets</div>
-        </div>
-        <div class="stat-card green">
-            <div class="value" id="opportunities-found">-</div>
-            <div class="label">Opps</div>
-        </div>
-        <div class="stat-card yellow">
-            <div class="value" id="best-score">-</div>
-            <div class="label">Top Score</div>
-        </div>
-        <div class="stat-card purple">
-            <div class="value" id="total-volume">-</div>
-            <div class="label">24h Vol</div>
-        </div>
+    <div class="status-bar">
+        <span class="status" id="status">Initializing...</span>
+        <button onclick="loadData()" id="refresh-btn">🔄 Refresh</button>
     </div>
 
-    <div class="controls">
+    <div class="debug" id="debug">Debug log...</div>
+
+    <div class="filters">
         <select id="min-liquidity">
-            <option value="0">All Liquidity</option>
-            <option value="5000" selected>$5K+ Liq</option>
-            <option value="25000">$25K+ Liq</option>
+            <option value="0">All Markets</option>
+            <option value="5000">$5K+ Liquidity</option>
+            <option value="20000">$20K+ Liquidity</option>
         </select>
         <select id="sort-by">
-            <option value="score">Sort: Score</option>
-            <option value="volume">Sort: Volume</option>
-            <option value="liquidity">Sort: Liquidity</option>
+            <option value="score">Best Opportunities</option>
+            <option value="volume">Highest Volume</option>
+            <option value="liquidity">Most Liquid</option>
         </select>
-        <button id="refresh-btn" onclick="loadData()">🔄 Refresh</button>
-        <span class="refresh-time" id="last-refresh"></span>
     </div>
 
-    <div class="panel">
-        <div class="panel-header">
-            <h2>🔥 Opportunities</h2>
-            <span id="opp-count">Loading...</span>
-        </div>
-        <div class="panel-content" id="opportunities-list">
-            <div class="loading">
-                <div class="spinner"></div>
-                <span>Scanning markets...</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="panel">
-        <div class="panel-header"><h2>📊 Volume by Category</h2></div>
-        <div class="panel-content">
-            <div class="chart-container"><canvas id="volume-chart"></canvas></div>
-        </div>
+    <div id="markets-container">
+        <div class="loading">Loading markets...</div>
     </div>
 
     <script>
-        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-        const GAMMA_API = 'https://gamma-api.polymarket.com';
-        
         let allMarkets = [];
-        let opportunities = [];
-        let volumeChart = null;
+        let debugLog = [];
+        
+        function log(msg) {
+            const time = new Date().toLocaleTimeString();
+            debugLog.push(`[${time}] ${msg}`);
+            if (debugLog.length > 20) debugLog.shift();
+            document.getElementById('debug').textContent = debugLog.join('\n');
+            console.log(msg);
+        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
-            setInterval(loadData, 300000);
-        });
+        function setStatus(msg, type = '') {
+            const el = document.getElementById('status');
+            el.textContent = msg;
+            el.className = 'status ' + type;
+        }
 
         async function loadData() {
             const btn = document.getElementById('refresh-btn');
             btn.disabled = true;
-            btn.textContent = '⏳';
+            setStatus('Fetching markets...', '');
+            log('Starting data fetch...');
 
             try {
-                await fetchMarkets();
-                analyzeOpportunities();
-                renderOpportunities();
-                updateStats();
-                updateChart();
-                document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('opportunities-list').innerHTML = 
-                    '<div class="error">Failed to load. Tap refresh to retry.<br><small>' + error.message + '</small></div>';
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '🔄 Refresh';
-            }
-        }
-
-        async function fetchMarkets() {
-            const url = GAMMA_API + '/markets?closed=false&limit=75';
-            const response = await fetch(CORS_PROXY + encodeURIComponent(url));
-            if (!response.ok) throw new Error('API error ' + response.status);
-            
-            const data = await response.json();
-            allMarkets = data.filter(m => m.active && !m.closed).map(m => {
-                let prices = m.outcomePrices || ['0.5','0.5'];
-                if (typeof prices === 'string') prices = JSON.parse(prices);
+                // Try multiple CORS proxies
+                const proxies = [
+                    'https://api.allorigins.win/raw?url=',
+                    'https://corsproxy.io/?',
+                    'https://api.codetabs.com/v1/proxy?quest='
+                ];
                 
-                return {
-                    ...m,
-                    yesPrice: parseFloat(prices[0] || 0.5),
-                    noPrice: parseFloat(prices[1] || 0.5),
-                    volume24h: parseFloat(m.volume24hr || 0),
-                    liquidity: parseFloat(m.liquidityNum || m.liquidity || 0),
-                    category: categorize(m)
-                };
-            });
-        }
-
-        function categorize(m) {
-            const t = (m.question || '').toLowerCase();
-            if (t.includes('trump') || t.includes('biden') || t.includes('election') || t.includes('president')) return 'politics';
-            if (t.includes('bitcoin') || t.includes('crypto') || t.includes('eth')) return 'crypto';
-            if (t.includes('nfl') || t.includes('nba') || t.includes('sports')) return 'sports';
-            return 'other';
-        }
-
-        function analyzeOpportunities() {
-            const minLiq = parseInt(document.getElementById('min-liquidity').value);
-            
-            opportunities = allMarkets.filter(m => m.liquidity >= minLiq).map(m => {
-                let score = 0;
-                let signals = [];
+                const apiUrl = 'https://gamma-api.polymarket.com/markets?closed=false&limit=50';
+                let data = null;
                 
-                // Volume signal
-                if (m.volume24h > 5000) {
-                    score += 10;
-                    signals.push('volume');
-                }
-                if (m.volume24h > 50000) score += 15;
-                
-                // Liquidity signal  
-                if (m.liquidity > 20000) {
-                    score += 8;
-                    signals.push('value');
-                }
-                
-                // Momentum: volume relative to liquidity
-                if (m.liquidity > 0) {
-                    const ratio = m.volume24h / m.liquidity;
-                    if (ratio > 0.2) {
-                        score += Math.min(ratio * 25, 30);
-                        signals.push('momentum');
+                for (const proxy of proxies) {
+                    try {
+                        log(`Trying proxy: ${proxy.substring(0, 30)}...`);
+                        const url = proxy + encodeURIComponent(apiUrl);
+                        const response = await fetch(url, { timeout: 15000 });
+                        
+                        if (response.ok) {
+                            const text = await response.text();
+                            log(`Got response: ${text.length} bytes`);
+                            data = JSON.parse(text);
+                            log(`Parsed ${data.length} markets`);
+                            break;
+                        }
+                    } catch (e) {
+                        log(`Proxy failed: ${e.message}`);
                     }
                 }
                 
-                // Extreme odds (potential value)
-                if (m.yesPrice < 0.15 || m.yesPrice > 0.85) {
-                    score += 12;
-                    signals.push('extreme');
+                if (!data) {
+                    throw new Error('All proxies failed');
                 }
-                
-                return {
-                    ...m,
-                    score: Math.round(score),
-                    signals,
-                    recommendation: getRec(m, signals)
-                };
-            }).filter(m => m.score > 0);
-            
-            // Sort
+
+                allMarkets = data.filter(m => m.active && !m.closed).map(m => {
+                    let prices = m.outcomePrices || ['0.5', '0.5'];
+                    if (typeof prices === 'string') {
+                        try { prices = JSON.parse(prices); } catch(e) { prices = ['0.5', '0.5']; }
+                    }
+                    
+                    const yesPrice = parseFloat(prices[0] || 0.5);
+                    const noPrice = parseFloat(prices[1] || 0.5);
+                    const volume24h = parseFloat(m.volume24hr || 0);
+                    const liquidity = parseFloat(m.liquidityNum || m.liquidity || 0);
+                    
+                    // Calculate score
+                    let score = 0;
+                    let signals = [];
+                    
+                    if (volume24h > 5000) { score += 15; signals.push('volume'); }
+                    if (volume24h > 50000) score += 20;
+                    if (liquidity > 10000) { score += 10; signals.push('liquid'); }
+                    if (liquidity > 0 && volume24h / liquidity > 0.25) { score += 20; signals.push('momentum'); }
+                    if (yesPrice < 0.15 || yesPrice > 0.85) { score += 15; signals.push('extreme'); }
+                    
+                    return {
+                        question: m.question || m.title || 'Unknown',
+                        slug: m.slug || m.conditionId,
+                        yesPrice,
+                        noPrice,
+                        volume24h,
+                        liquidity,
+                        score,
+                        signals,
+                        endDate: m.endDate
+                    };
+                });
+
+                log(`Processed ${allMarkets.length} active markets`);
+                setStatus(`✓ Loaded ${allMarkets.length} markets`, 'success');
+                renderMarkets();
+
+            } catch (error) {
+                log(`Error: ${error.message}`);
+                setStatus('Failed: ' + error.message, 'error');
+                document.getElementById('markets-container').innerHTML = 
+                    '<div class="empty">Failed to load data. Tap refresh to retry.</div>';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderMarkets() {
+            const minLiq = parseInt(document.getElementById('min-liquidity').value);
             const sortBy = document.getElementById('sort-by').value;
-            opportunities.sort((a, b) => {
+            
+            let markets = allMarkets.filter(m => m.liquidity >= minLiq);
+            
+            markets.sort((a, b) => {
                 if (sortBy === 'volume') return b.volume24h - a.volume24h;
                 if (sortBy === 'liquidity') return b.liquidity - a.liquidity;
                 return b.score - a.score;
             });
-        }
 
-        function getRec(m, signals) {
-            if (m.yesPrice < 0.1) return 'Long-shot YES at ' + (m.yesPrice*100).toFixed(0) + '¢ — huge upside if it hits';
-            if (m.yesPrice > 0.9) return 'Near-certain at ' + (m.yesPrice*100).toFixed(0) + '¢ — consider NO for value';
-            if (signals.includes('momentum')) return 'High activity — ' + ((m.volume24h/m.liquidity)*100).toFixed(0) + '% volume/liquidity ratio';
-            if (m.volume24h > 100000) return 'Major volume ($' + (m.volume24h/1000).toFixed(0) + 'K in 24h)';
-            return 'Active market with good liquidity';
-        }
+            log(`Rendering ${markets.length} markets after filter`);
 
-        function renderOpportunities() {
-            const container = document.getElementById('opportunities-list');
-            document.getElementById('opp-count').textContent = opportunities.length + ' found';
-            
-            if (opportunities.length === 0) {
-                container.innerHTML = '<div class="empty-state">No opportunities found.<br>Try lowering the liquidity filter.</div>';
+            if (markets.length === 0) {
+                document.getElementById('markets-container').innerHTML = 
+                    '<div class="empty">No markets found. Try changing filters.</div>';
                 return;
             }
-            
-            container.innerHTML = opportunities.slice(0, 30).map(o => `
-                <div class="opp-card">
-                    <div class="opp-header">
-                        <div class="opp-title">
-                            <a href="https://polymarket.com/event/${o.slug || o.conditionId}" target="_blank">${o.question || 'Unknown'}</a>
-                        </div>
-                        <span class="opp-score ${o.score >= 40 ? 'score-high' : o.score >= 20 ? 'score-medium' : 'score-low'}">${o.score}</span>
-                    </div>
-                    <div class="opp-details">
-                        <div class="detail-item">
-                            <div class="detail-value" style="color:var(--accent-green)">${(o.yesPrice*100).toFixed(0)}¢</div>
-                            <div class="detail-label">YES</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-value" style="color:var(--accent-red)">${(o.noPrice*100).toFixed(0)}¢</div>
-                            <div class="detail-label">NO</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-value">${fmt(o.liquidity)}</div>
-                            <div class="detail-label">Liquidity</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-value">${fmt(o.volume24h)}</div>
-                            <div class="detail-label">24h Vol</div>
-                        </div>
-                    </div>
-                    <div class="opp-meta">
-                        <div>${o.signals.map(s => '<span class="tag tag-'+s+'">'+s.toUpperCase()+'</span>').join('')}</div>
-                    </div>
-                    <div class="recommendation">💡 ${o.recommendation}</div>
-                </div>
-            `).join('');
-        }
 
-        function updateStats() {
-            document.getElementById('total-markets').textContent = allMarkets.length;
-            document.getElementById('opportunities-found').textContent = opportunities.length;
-            document.getElementById('best-score').textContent = opportunities.length > 0 ? opportunities[0].score : '-';
-            const totalVol = allMarkets.reduce((s, m) => s + m.volume24h, 0);
-            document.getElementById('total-volume').textContent = fmt(totalVol);
-        }
-
-        function updateChart() {
-            const cats = ['politics', 'crypto', 'sports', 'other'];
-            const vols = cats.map(c => allMarkets.filter(m => m.category === c).reduce((s, m) => s + m.volume24h, 0));
-            
-            if (volumeChart) volumeChart.destroy();
-            volumeChart = new Chart(document.getElementById('volume-chart'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Politics', 'Crypto', 'Sports', 'Other'],
-                    datasets: [{
-                        data: vols,
-                        backgroundColor: ['rgba(88,166,255,0.8)', 'rgba(163,113,247,0.8)', 'rgba(63,185,80,0.8)', 'rgba(139,148,158,0.8)'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right', labels: { color: '#f0f6fc', font: { size: 11 } } }
-                    }
+            const html = markets.slice(0, 25).map(m => {
+                const yesPayout = (1 / m.yesPrice).toFixed(2);
+                const noPayout = (1 / m.noPrice).toFixed(2);
+                const yesROI = ((1 / m.yesPrice - 1) * 100).toFixed(0);
+                const noROI = ((1 / m.noPrice - 1) * 100).toFixed(0);
+                
+                let analysis = '';
+                if (m.yesPrice < 0.1) {
+                    analysis = `<span class="highlight">Long-shot bet:</span> YES is priced at just ${(m.yesPrice*100).toFixed(0)}¢. If you bet $10 and YES wins, you'd get <span class="highlight">$${(10/m.yesPrice).toFixed(0)}</span> back (${yesROI}% return). High risk, high reward.`;
+                } else if (m.yesPrice > 0.9) {
+                    analysis = `<span class="highlight">Near-certainty:</span> Market prices YES at ${(m.yesPrice*100).toFixed(0)}%. The value might be in betting NO at ${(m.noPrice*100).toFixed(0)}¢ — a $10 NO bet pays <span class="highlight">$${(10/m.noPrice).toFixed(0)}</span> if it hits.`;
+                } else if (m.signals.includes('momentum')) {
+                    const ratio = (m.volume24h / m.liquidity * 100).toFixed(0);
+                    analysis = `<span class="highlight">Hot market:</span> ${ratio}% volume-to-liquidity ratio suggests heavy trading activity. Smart money may be moving. Current YES odds imply ${(m.yesPrice*100).toFixed(0)}% probability.`;
+                } else if (m.volume24h > 50000) {
+                    analysis = `<span class="highlight">High volume:</span> $${(m.volume24h/1000).toFixed(0)}K traded in 24h. Market prices YES at ${(m.yesPrice*100).toFixed(0)}% probability. Good liquidity for entering/exiting positions.`;
+                } else {
+                    analysis = `Market implies ${(m.yesPrice*100).toFixed(0)}% chance of YES. A $10 YES bet returns <span class="highlight">$${(10/m.yesPrice).toFixed(0)}</span> if correct. A $10 NO bet returns <span class="highlight">$${(10/m.noPrice).toFixed(0)}</span> if correct.`;
                 }
-            });
+
+                return `
+                    <div class="market-card">
+                        <div class="market-question">
+                            <a href="https://polymarket.com/event/${m.slug}" target="_blank">${m.question}</a>
+                        </div>
+                        
+                        <div class="prices-row">
+                            <div class="price-box yes">
+                                <div class="label">BUY YES</div>
+                                <div class="price">${(m.yesPrice*100).toFixed(0)}¢</div>
+                                <div class="payout">Win → <strong>${yesPayout}x</strong> (+${yesROI}%)</div>
+                            </div>
+                            <div class="price-box no">
+                                <div class="label">BUY NO</div>
+                                <div class="price">${(m.noPrice*100).toFixed(0)}¢</div>
+                                <div class="payout">Win → <strong>${noPayout}x</strong> (+${noROI}%)</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <div class="val">$${formatNum(m.liquidity)}</div>
+                                <div class="lbl">Liquidity</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="val">$${formatNum(m.volume24h)}</div>
+                                <div class="lbl">24h Volume</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="val">${m.score}</div>
+                                <div class="lbl">Score</div>
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-box">
+                            <h4>💡 Analysis</h4>
+                            <p>${analysis}</p>
+                            <div class="tags">
+                                ${m.signals.map(s => `<span class="tag tag-${s}">${s.toUpperCase()}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('markets-container').innerHTML = html;
         }
 
-        function fmt(n) {
-            if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M';
-            if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
-            return '$' + Math.round(n);
+        function formatNum(n) {
+            if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+            return n.toFixed(0);
         }
 
-        document.getElementById('min-liquidity').addEventListener('change', () => { analyzeOpportunities(); renderOpportunities(); updateStats(); });
-        document.getElementById('sort-by').addEventListener('change', () => { analyzeOpportunities(); renderOpportunities(); });
+        document.getElementById('min-liquidity').addEventListener('change', renderMarkets);
+        document.getElementById('sort-by').addEventListener('change', renderMarkets);
+
+        // Load on start
+        loadData();
     </script>
 </body>
 </html>
